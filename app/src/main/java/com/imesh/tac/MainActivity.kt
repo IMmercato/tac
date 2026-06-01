@@ -1,42 +1,48 @@
 package com.imesh.tac
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.imesh.tac.magnet.MagnetData
+import com.imesh.tac.magnet.MagnetShape
 import com.imesh.tac.ui.theme.TACTheme
+
+enum class Tab { HOME, ADD, PROFILE }
+
+// SAMPLES
+val sampleMagnets = listOf(
+    MagnetData("rome",      "ROME",   "Colosseum",  Color(0xFFE8920F), Color(0xFFFFE0A0), MagnetShape.Arch,      40f,  80f, -4f, elevation = 3.dp),
+    MagnetData("paris",     "PARIS",  "♥ 2024",     Color(0xFFC2185B), Color(0xFFFFD6EA), MagnetShape.Disc,     120f,  60f,  3f, elevation = 5.dp),
+    MagnetData("nyc",       "NYC",    "New York",   Color(0xFF1A4FD6), Color(0xFFC8D8FF), MagnetShape.Shield,   202f,  70f,  2f, elevation = 4.dp),
+    MagnetData("beach",     "Amalfi", "'23",        Color(0xFF0288D1), Color(0xFFE1F5FE), MagnetShape.Postcard,  32f, 190f, -2f, elevation = 3.dp),
+    MagnetData("brasil",    "BRASIL", "",           Color(0xFF1A9C3E), Color(0xFFC8F5D8), MagnetShape.FlagStrip,145f, 168f,  1.5f, elevation = 2.dp),
+    MagnetData("lisbon",    "LOVE",   "LISBON",     Color(0xFFE53935), Color(0xFFFFD0CF), MagnetShape.Heart,    252f, 185f, -3f, elevation = 6.dp),
+    MagnetData("athens",    "ATHENS", "Parthenon",  Color(0xFF5040C8), Color(0xFFD8D0FF), MagnetShape.Arch,      60f, 300f,  3f, elevation = 4.dp),
+    MagnetData("tokyo",     "TOKYO",  "JP",         Color(0xFF0277BD), Color(0xFFE1F5FE), MagnetShape.Disc,     170f, 280f, -5f, elevation = 7.dp),
+    MagnetData("spain",     "ESPAÑA", "",           Color(0xFFB71C1C), Color(0xFFFFCDD2), MagnetShape.FlagStrip, 40f, 400f, -1f, elevation = 3.dp),
+    MagnetData("santorini", "Santorini","Summer '24",Color(0xFFFF8F00), Color(0xFFFFF8E1), MagnetShape.Postcard, 148f, 380f,  2.5f, elevation = 5.dp),
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,111 +52,48 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             TACTheme {
-                Fridge(listOf())
+                MainScreen()
             }
         }
     }
 }
 
-val MetalLight     = Color(0xFFF0F4F8)
-val MetalMid       = Color(0xFFD1D9E6)
-val MetalDark      = Color(0xFFB8C2D1)
-val HandleColor    = Color(0xFF9AAABF)
-
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
-fun Fridge(magnets: List<MagnetData>) {
-    BoxWithConstraints(
+fun MainScreen() {
+    var selectedTab by remember { mutableStateOf(Tab.HOME) }
+
+    Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colorStops = arrayOf(0.00f to MetalLight, 0.35f to MetalMid, 0.70f to MetalDark, 1.00f to Color(0xFFA8B4C8)),
-                    start = Offset(0f, 0f),
-                    end = Offset(1000f, 1000f)
-                )
-            )
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawBrushedLines()
-        }
-        Box(
-            modifier = Modifier
-                .height(140.dp)
-                .width(7.dp)
-                .align(Alignment.CenterEnd)
-                .offset(x = (-14).dp)
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            Color(0xFF7A8FA8),
-                            Color(0xFFCCD8E8),
-                            Color(0xFF7A8FA8)
-                        )
-                    ),
-                    RoundedCornerShape(3.dp)
-                )
-        )
-
-        val sorted = remember(magnets) { magnets.sortedBy { it.elevation.value } }
-        sorted.forEach { data ->
-            key(data.id) { Magnet(data) }
-        }
-    }
-}
-
-private fun DrawScope.drawBrushedLines() {
-    val spacing  = 48.dp.toPx()
-    var x = 0f
-    while (x < size.width) {
-        drawLine(
-            color = Color.White.copy(alpha = 0.06f),
-            start = Offset(x, 0f),
-            end = Offset(x, size.height),
-            strokeWidth = 1f
-        )
-        x += spacing
-    }
-}
-
-@Composable
-fun Magnet(data: MagnetData) {
-    var offsetX by remember { mutableStateOf(data.initialX) }
-    var offsetY by remember { mutableStateOf(data.initialY) }
-    var isDragging by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .offset { IntOffset(offsetX.toInt(), offsetY.toInt()) }
-            .shadow(
-                elevation = if (isDragging) 15.dp else 4.dp,
-                shape = RoundedCornerShape(8.dp),
-                ambientColor = Color.Black.copy(alpha = 0.5f)
-            )
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { isDragging = true },
-                    onDragEnd = { isDragging = false },
-                    onDragCancel = { isDragging = false }
-                ) { change, dragAmount ->
-                    change.consume()
-                    offsetX += dragAmount.x
-                    offsetY += dragAmount.y
+            .background(Color.Transparent),
+        bottomBar = {
+            BottomAppBar {
+                IconButton(onClick = { selectedTab = Tab.HOME },
+                    modifier = Modifier.weight(1f)) {
+                    Icon(
+                        Icons.Default.Home,
+                        contentDescription = "Home",
+                        tint = if (selectedTab == Tab.HOME) Color.White else Color.DarkGray
+                    )
+                }
+                IconButton(onClick = { selectedTab = Tab.ADD },
+                    modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.Add,
+                        modifier = Modifier.size(24.dp),
+                        contentDescription = "Add",
+                        tint = if (selectedTab == Tab.ADD) Color.White else Color.DarkGray
+                    )
+                }
+                IconButton(onClick = { selectedTab = Tab.PROFILE },
+                    modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.Person,
+                        contentDescription = "Profile",
+                        tint = if (selectedTab == Tab.PROFILE) Color.White else Color.DarkGray
+                    )
                 }
             }
-            .clip(RoundedCornerShape(8.dp))
-            .drawBehind {
-                drawRect(
-                    color = Color.White.copy(alpha = 0.2f),
-                    size = size.copy(height = size.height * 0.1f)
-                )
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = data.label,
-            color = Color.White,
-            style = MaterialTheme.typography.labelSmall
-        )
+        }
+    ) {paddingValues ->
+        Fridge(sampleMagnets, modifier = Modifier.padding(paddingValues))
     }
 }
