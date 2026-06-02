@@ -4,15 +4,29 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -21,8 +35,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.imesh.tac.magnet.MagnetData
 import com.imesh.tac.magnet.MagnetShape
@@ -63,37 +81,163 @@ fun MainScreen() {
     var selectedTab by remember { mutableStateOf(Tab.HOME) }
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent),
+        modifier = Modifier.fillMaxSize(),
+        containerColor = Color.Transparent,
         bottomBar = {
-            BottomAppBar {
-                IconButton(onClick = { selectedTab = Tab.HOME },
-                    modifier = Modifier.weight(1f)) {
-                    Icon(
-                        Icons.Default.Home,
-                        contentDescription = "Home",
-                        tint = if (selectedTab == Tab.HOME) Color.White else Color.DarkGray
-                    )
-                }
-                IconButton(onClick = { selectedTab = Tab.ADD },
-                    modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Add,
-                        modifier = Modifier.size(24.dp),
-                        contentDescription = "Add",
-                        tint = if (selectedTab == Tab.ADD) Color.White else Color.DarkGray
-                    )
-                }
-                IconButton(onClick = { selectedTab = Tab.PROFILE },
-                    modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Person,
-                        contentDescription = "Profile",
-                        tint = if (selectedTab == Tab.PROFILE) Color.White else Color.DarkGray
-                    )
-                }
-            }
+            NavBar(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it }
+            )
         }
-    ) {paddingValues ->
+    ) { paddingValues ->
         Fridge(sampleMagnets, modifier = Modifier.padding(paddingValues))
+    }
+}
+
+@Composable
+fun NavBar(
+    selectedTab: Tab,
+    onTabSelected: (Tab) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .height(64.dp)
+            .background(
+                brush = Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.28f),
+                        Color.White.copy(alpha = 0.12f)
+                    )
+                ),
+                shape = RoundedCornerShape(32.dp)
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.7f),
+                        Color.White.copy(alpha = 0.15f)
+                    )
+                ),
+                shape = RoundedCornerShape(32.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        var addPressed by remember { mutableStateOf(false) }
+        val addRotation by animateFloatAsState(
+            targetValue = if (addPressed) 360f else 0f,
+            animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+            label = "addRotation"
+        )
+        val addScale by animateFloatAsState(
+            targetValue = if (addPressed) 1.25f else 1f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+            label = "addScale"
+        )
+        val addIcon: ImageVector = if (addPressed) Icons.Default.Flight else Icons.Default.Add
+
+        Box(
+            Modifier
+                .fillMaxWidth(0.6f)
+                .height(1.5.dp)
+                .align(Alignment.TopCenter)
+                .offset(y = 6.dp)
+                .background(
+                    brush = Brush.horizontalGradient(
+                        listOf(
+                            Color.Transparent,
+                            Color.White.copy(alpha = 0.6f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = RoundedCornerShape(1.dp)
+                )
+        )
+
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NavItem(
+                icon = Icons.Default.Home,
+                label = "Home",
+                selected = selectedTab == Tab.HOME,
+                onClick = { onTabSelected(Tab.HOME) }
+            )
+
+            IconButton(
+                onClick = {
+                    addPressed = !addPressed
+                    onTabSelected(Tab.ADD)
+                },
+                modifier = Modifier
+                    .size(48.dp)
+                    .graphicsLayer{
+                        scaleX = addScale
+                        scaleY = addScale
+                        rotationZ = addRotation
+                    }
+                    .background(
+                        brush = Brush.radialGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.35f),
+                                Color.White.copy(alpha = 0.08f)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = addIcon,
+                    contentDescription = "Add",
+                    tint = if (selectedTab == Tab.ADD) Color.White else Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            NavItem(
+                icon = Icons.Default.Person,
+                label = "Profile",
+                selected = selectedTab == Tab.PROFILE,
+                onClick = { onTabSelected(Tab.PROFILE) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun NavItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.15f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "navItemScale"
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (selected) 1f else 0.55f,
+        animationSpec = tween(200),
+        label = "navItemAlpha"
+    )
+
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(48.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = Color.White.copy(alpha = alpha),
+            modifier = Modifier.size(24.dp)
+        )
     }
 }
