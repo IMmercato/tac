@@ -14,22 +14,22 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.FlightTakeoff
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,7 +59,7 @@ val sampleMagnets = listOf(
     MagnetData("athens",    "ATHENS", "Parthenon",  Color(0xFF5040C8), Color(0xFFD8D0FF), MagnetShape.Arch,      60f, 300f,  3f, elevation = 4.dp),
     MagnetData("tokyo",     "TOKYO",  "JP",         Color(0xFF0277BD), Color(0xFFE1F5FE), MagnetShape.Disc,     170f, 280f, -5f, elevation = 7.dp),
     MagnetData("spain",     "ESPAÑA", "",           Color(0xFFB71C1C), Color(0xFFFFCDD2), MagnetShape.FlagStrip, 40f, 400f, -1f, elevation = 3.dp),
-    MagnetData("santorini", "Santorini","Summer '24",Color(0xFFFF8F00), Color(0xFFFFF8E1), MagnetShape.Postcard, 148f, 380f,  2.5f, elevation = 5.dp),
+    MagnetData("santorini", "Santorini","Summer '24",Color(0xFFFF8F00), Color(0xFFFFF8E1), MagnetShape.Postcard, 148f, 380f,  2.5f, elevation = 5.dp)
 )
 
 class MainActivity : ComponentActivity() {
@@ -80,79 +80,81 @@ class MainActivity : ComponentActivity() {
 fun MainScreen() {
     var selectedTab by remember { mutableStateOf(Tab.HOME) }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
-        bottomBar = {
-            NavBar(
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it }
-            )
-        }
-    ) { paddingValues ->
-        Fridge(sampleMagnets, modifier = Modifier.padding(paddingValues))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Fridge(sampleMagnets, modifier = Modifier.fillMaxSize())
+
+        NavBar(
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(horizontal = 32.dp, vertical = 12.dp)
+        )
     }
 }
 
 @Composable
 fun NavBar(
     selectedTab: Tab,
-    onTabSelected: (Tab) -> Unit
+    onTabSelected: (Tab) -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    var addPressed by remember { mutableStateOf(false) }
+    val addRotation by animateFloatAsState(
+        targetValue = if (addPressed) 360f else 0f,
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+        label = "addRotation"
+    )
+    val addScale by animateFloatAsState(
+        targetValue = if (addPressed) 1.25f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "addScale"
+    )
+    val addIcon: ImageVector = if (addPressed) Icons.Default.FlightTakeoff else Icons.Default.Add
+
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
-            .height(64.dp)
+            .height(62.dp)
             .background(
                 brush = Brush.verticalGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.28f),
-                        Color.White.copy(alpha = 0.12f)
+                    colorStops = arrayOf(
+                        0.00f to Color(0xFF6B7A8D),
+                        0.08f to Color(0xFF4A5568),
+                        0.50f to Color(0xFF2D3748),
+                        0.92f to Color(0xFF1A202C),
+                        1.00f to Color(0xFF0F141A)
                     )
                 ),
-                shape = RoundedCornerShape(32.dp)
+                shape = RoundedCornerShape(31.dp)
             )
             .border(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.7f),
-                        Color.White.copy(alpha = 0.15f)
+                    colorStops = arrayOf(
+                        0.0f to Color(0xFFCDD6E0),
+                        0.4f to Color(0xFF7A8FA8),
+                        1.0f to Color(0xFF1A202C)
                     )
                 ),
-                shape = RoundedCornerShape(32.dp)
+                shape = RoundedCornerShape(31.dp)
             ),
         contentAlignment = Alignment.Center
     ) {
-        var addPressed by remember { mutableStateOf(false) }
-        val addRotation by animateFloatAsState(
-            targetValue = if (addPressed) 360f else 0f,
-            animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
-            label = "addRotation"
-        )
-        val addScale by animateFloatAsState(
-            targetValue = if (addPressed) 1.25f else 1f,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-            label = "addScale"
-        )
-        val addIcon: ImageVector = if (addPressed) Icons.Default.Flight else Icons.Default.Add
-
         Box(
             Modifier
-                .fillMaxWidth(0.6f)
-                .height(1.5.dp)
+                .fillMaxWidth()
+                .fillMaxHeight(0.42f)
                 .align(Alignment.TopCenter)
-                .offset(y = 6.dp)
                 .background(
-                    brush = Brush.horizontalGradient(
+                    brush = Brush.verticalGradient(
                         listOf(
-                            Color.Transparent,
-                            Color.White.copy(alpha = 0.6f),
+                            Color.White.copy(alpha = 0.18f),
                             Color.Transparent
                         )
                     ),
-                    shape = RoundedCornerShape(1.dp)
+                    shape = RoundedCornerShape(topStart = 31.dp, topEnd = 31.dp)
                 )
         )
 
@@ -174,28 +176,39 @@ fun NavBar(
                     onTabSelected(Tab.ADD)
                 },
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(44.dp)
                     .graphicsLayer{
                         scaleX = addScale
                         scaleY = addScale
                         rotationZ = addRotation
                     }
                     .background(
-                        brush = Brush.radialGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.35f),
-                                Color.White.copy(alpha = 0.08f)
+                        brush = Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f  to Color(0xFF8A9BB0),
+                                0.3f  to Color(0xFF5A6A7D),
+                                0.7f  to Color(0xFF3A4A5C),
+                                1.0f  to Color(0xFF252F3D),
                             )
                         ),
                         shape = CircleShape
                     )
-                    .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape)
+                    .border(
+                        1.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFFCDD6E0),
+                                Color(0xFF3A4A5C)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
             ) {
                 Icon(
                     imageVector = addIcon,
                     contentDescription = "Add",
-                    tint = if (selectedTab == Tab.ADD) Color.White else Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.size(22.dp)
+                    tint = if (addPressed) Color(0xFFFFE0A0) else Color(0xFFCDD6E0),
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
@@ -217,14 +230,9 @@ private fun NavItem(
     onClick: () -> Unit
 ) {
     val scale by animateFloatAsState(
-        targetValue = if (selected) 1.15f else 1f,
+        targetValue = if (selected) 1.18f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "navItemScale"
-    )
-    val alpha by animateFloatAsState(
-        targetValue = if (selected) 1f else 0.55f,
-        animationSpec = tween(200),
-        label = "navItemAlpha"
+        label = "scale"
     )
 
     IconButton(
@@ -236,7 +244,7 @@ private fun NavItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = Color.White.copy(alpha = alpha),
+            tint = if (selected) Color(0xFFE8EDF2) else Color(0xFF6B7A8D),
             modifier = Modifier.size(24.dp)
         )
     }
