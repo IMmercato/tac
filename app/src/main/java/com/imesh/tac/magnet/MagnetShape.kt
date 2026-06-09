@@ -24,7 +24,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,14 +40,15 @@ sealed class MagnetShape {
 data class MagnetData(
     val id: String,
     val label: String,
-    val sublabel: String = "",
+    val subLabel: String,
     val color: Color,
     val accentColor: Color,
     val shape: MagnetShape,
     val initialX: Float,
     val initialY: Float,
     val initialRotation: Float = 0f,
-    val elevation: Dp = 4.dp
+    val elevation: Dp = 4.dp,
+    val imagePath: String? = null
 )
 
 
@@ -90,7 +90,7 @@ fun ArchMagnet(data: MagnetData, elevation: Dp) {
             modifier = Modifier.padding(top = 6.dp)
         ) {
             Text(data.label,    color = data.accentColor, style = MaterialTheme.typography.labelSmall)
-            Text(data.sublabel, color = data.accentColor.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp))
+            Text(data.subLabel, color = data.accentColor.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp))
         }
     }
 }
@@ -121,7 +121,7 @@ fun DiscMagnet(data: MagnetData, elevation: Dp) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(data.label,    color = data.accentColor, style = MaterialTheme.typography.labelSmall)
-                Text(data.sublabel, color = data.accentColor.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall.copy(fontSize = 6.5.sp))
+                Text(data.subLabel, color = data.accentColor.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall.copy(fontSize = 6.5.sp))
             }
         }
     }
@@ -129,11 +129,6 @@ fun DiscMagnet(data: MagnetData, elevation: Dp) {
 
 @Composable
 fun ShieldMagnet(data: MagnetData, elevation: Dp) {
-    val shieldPath = Path().apply {
-        moveTo(0f, 0f); lineTo(1f, 0f)
-        lineTo(1f, 0.68f); lineTo(0.5f, 1f); lineTo(0f, 0.68f)
-        close()
-    }
     Box(
         modifier = Modifier
             .size(width = 46.dp, height = 58.dp)
@@ -159,7 +154,7 @@ fun ShieldMagnet(data: MagnetData, elevation: Dp) {
             modifier = Modifier.padding(top = 10.dp)
         ) {
             Text(data.label,    color = data.accentColor, style = MaterialTheme.typography.labelSmall)
-            Text(data.sublabel, color = data.accentColor.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp))
+            Text(data.subLabel, color = data.accentColor.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp))
         }
     }
 }
@@ -187,7 +182,7 @@ fun PostcardMagnet(data: MagnetData, elevation: Dp) {
         )
         Column(Modifier.padding(horizontal = 4.dp, vertical = 2.dp)) {
             Text(data.label,    color = Color(0xFF3C2A0A), style = MaterialTheme.typography.labelSmall)
-            Text(data.sublabel, color = Color(0xFF7A6030), style = MaterialTheme.typography.labelSmall.copy(fontSize = 6.5.sp))
+            Text(data.subLabel, color = Color(0xFF7A6030), style = MaterialTheme.typography.labelSmall.copy(fontSize = 6.5.sp))
         }
     }
 }
@@ -240,7 +235,7 @@ fun HeartMagnet(data: MagnetData, elevation: Dp) {
             modifier = Modifier.padding(top = 6.dp)
         ) {
             Text(data.label,    color = data.accentColor, style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.5.sp))
-            Text(data.sublabel, color = data.accentColor.copy(alpha = 0.8f), style = MaterialTheme.typography.labelSmall.copy(fontSize = 6.5.sp))
+            Text(data.subLabel, color = data.accentColor.copy(alpha = 0.8f), style = MaterialTheme.typography.labelSmall.copy(fontSize = 6.5.sp))
         }
     }
 }
