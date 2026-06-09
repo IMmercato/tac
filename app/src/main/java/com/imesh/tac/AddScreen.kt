@@ -1,5 +1,6 @@
 package com.imesh.tac
 
+import android.util.DisplayMetrics
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,11 +39,15 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,6 +61,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -64,12 +71,12 @@ import androidx.compose.ui.unit.sp
 import com.imesh.tac.magnet.MagnetData
 import com.imesh.tac.magnet.MagnetShape
 import com.imesh.tac.magnet.lighten
+import kotlin.random.Random
 
 private val PanelDark   = Color(0xFF1A202C)
 private val PanelMid    = Color(0xFF2D3748)
 private val PanelLight  = Color(0xFF4A5568)
 private val AccentGold  = Color(0xFFE8C882)
-private val AccentGlow  = Color(0xFFFFE0A0)
 private val TextPrimary = Color(0xFFE8EDF2)
 private val TextMuted   = Color(0xFF6B7A8D)
 private val InputBg     = Color(0xFF252F3D)
@@ -102,12 +109,12 @@ private val shapeOptions = listOf(
 private enum class Steps { DETAILS, SHAPE, CONFIRM }
 
 @Composable
-fun AddScreen() {
+fun AddScreen(onMagnetCreated: (MagnetData) -> Unit = {}) {
     var step by remember { mutableStateOf(Steps.DETAILS) }
     var destination by remember { mutableStateOf("") }
     var subLabel by remember { mutableStateOf("") }
     var selectedShape by remember { mutableStateOf<MagnetShape>(MagnetShape.Arch) }
-    var selectedColor by remember { mutableStateOf(0) }
+    var selectedColor by remember { mutableIntStateOf(0) }
     var useCustom by remember { mutableStateOf(false) }
 
     Column(
@@ -160,7 +167,28 @@ fun AddScreen() {
                     onBack = { step = Steps.DETAILS },
                     onNext = { step = Steps.CONFIRM }
                 )
-                Steps.CONFIRM -> null
+                Steps.CONFIRM -> Confirm(
+                    destination = destination,
+                    subLabel = subLabel,
+                    shape = selectedShape,
+                    palette = colorPalettes[selectedColor],
+                    onBack = { step = Steps.SHAPE },
+                    onConfirm = {
+                        onMagnetCreated(
+                            MagnetData(
+                                id = "magnet_${System.currentTimeMillis()}",
+                                label = destination.uppercase().take(10),
+                                subLabel = subLabel,
+                                color = colorPalettes[selectedColor].main,
+                                accentColor = colorPalettes[selectedColor].accent,
+                                shape = selectedShape,
+                                initialX = Random.nextFloat() * DisplayMetrics().widthPixels,
+                                initialY = Random.nextFloat() * DisplayMetrics().heightPixels,
+                                initialRotation = (-4..4).random().toFloat()
+                            )
+                        )
+                    }
+                )
             }
         }
     }
@@ -336,13 +364,17 @@ private fun Shape(
 
         MetalCard {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                FieldLabel("COLOUR")
+                FieldLabel("COLOR")
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(vertical = 4.dp)
                 ) {
                     itemsIndexed(colorPalettes) { index, palette ->
-
+                        ColorSwatch(
+                            palette = palette,
+                            selected = index == selectedColor,
+                            onClick = { onColorSelect(index) }
+                        )
                     }
                 }
             }
@@ -352,7 +384,18 @@ private fun Shape(
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 FieldLabel("OR USE YOUR OWN PHOTO")
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-
+                    MediaButton(
+                        icon = Icons.Default.CameraAlt,
+                        label = "Camera",
+                        selected = useCustom,
+                        onClick = { onToggleCustom(true) }
+                    )
+                    MediaButton(
+                        icon = Icons.Default.PhotoLibrary,
+                        label = "Gallery",
+                        selected = useCustom,
+                        onClick = { onToggleCustom(true) }
+                    )
                 }
                 AnimatedVisibility(visible = useCustom) {
                     Text(
@@ -366,7 +409,87 @@ private fun Shape(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button2(label = "← Back", onClick = onBack, modifier = Modifier.weight(1f))
             Button(label = "Preview →", onClick = onNext, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun Confirm(
+    destination: String,
+    subLabel: String,
+    shape: MagnetShape,
+    palette: ColorPalette,
+    onBack: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        MetalCard {
+            Column(
+                Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(160.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.radialGradient(
+                                listOf(Color(0xFFCDD6E0), Color(0xFF9AAABF))
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    MagnetBody(
+                        data = MagnetData(
+                            id = "confirm_preview",
+                            label = destination.uppercase().take(10),
+                            subLabel = subLabel,
+                            color = palette.main,
+                            accentColor = palette.accent,
+                            shape = shape,
+                            initialX = 0f,
+                            initialY = 0f
+                        ),
+                        elevation = 16.dp
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = destination.uppercase(),
+                        color = PanelDark,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.5.sp
+                    )
+                    if (subLabel.isNotBlank()) {
+                        Text(
+                            text = subLabel,
+                            color = PanelLight,
+                            fontSize = 13.sp
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    SummaryTag(
+                        label = shapeOptions.first { it.shape == shape }.label,
+                        color = palette.main,
+                        accent = palette.accent
+                    )
+                }
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button2(label = "← Edit", onClick = onBack, modifier = Modifier.weight(1f))
+            ConfirmButton(onClick = onConfirm, modifier = Modifier.weight(1f))
         }
     }
 }
@@ -454,6 +577,87 @@ private fun TextField(
 }
 
 @Composable
+private fun ShapeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val scale by animateFloatAsState(
+        if (selected) 1.06f else 1f,
+        spring(Spring.DampingRatioMediumBouncy),
+        label = "chip"
+    )
+    Box(
+        modifier = Modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                if (selected)
+                    Brush.linearGradient(listOf(AccentGold.lighten(0.1f), AccentGold))
+                else
+                    Brush.linearGradient(listOf(InputBg, InputBg))
+            )
+            .border(
+                1.dp,
+                if (selected) AccentGold else InputBorder,
+                RoundedCornerShape(20.dp)
+            )
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = if (selected) PanelDark else TextPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun ColorSwatch(palette: ColorPalette, selected: Boolean, onClick: () -> Unit) {
+    val scale by animateFloatAsState(
+        if (selected) 1.15f else 1f,
+        spring(Spring.DampingRatioMediumBouncy),
+        label = "swatch"
+    )
+    Box(
+        modifier = Modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .size(36.dp)
+            .shadow(if (selected) 6.dp else 2.dp, CircleShape)
+            .clip(CircleShape)
+            .background(palette.main)
+            .border(
+                width = if (selected) 2.5.dp else 0.dp,
+                color = Color.White,
+                shape = CircleShape
+            )
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (selected) {
+            Icon(Icons.Default.Check, null, tint = palette.accent, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun SummaryTag(label: String, color: Color, accent: Color) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(color)
+            .padding(horizontal = 14.dp, vertical = 5.dp)
+    ) {
+        Text(label, color = accent, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+    }
+}
+
+@Composable
 private fun Button(
     label: String,
     onClick: () -> Unit,
@@ -496,15 +700,74 @@ private fun Button(
 }
 
 @Composable
-private fun ShapeChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val scale by animateFloatAsState(
-        if (selected) 1.06f else 1f,
-        spring(Spring.DampingRatioMediumBouncy),
-        label = "chip"
-    )
-    Box(
+private fun Button2(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box (
+        modifier = modifier
+            .height(50.dp)
+            .clip(RoundedCornerShape(25.dp))
+            .background(InputBg)
+            .border(1.dp, InputBorder, RoundedCornerShape(25.dp))
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun MediaButton(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
         modifier = Modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .clip(RoundedCornerShape(20.dp))
-    ) {}
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) PanelMid else InputBg)
+            .border(1.dp, if (selected) AccentGold.copy(alpha = 0.5f) else InputBorder, RoundedCornerShape(10.dp))
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(icon, null, tint = if (selected) AccentGold else TextMuted, modifier = Modifier.size(16.dp))
+        Text(label, color = if (selected) AccentGold else TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun ConfirmButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .height(50.dp)
+            .shadow(10.dp, RoundedCornerShape(25.dp))
+            .clip(RoundedCornerShape(25.dp))
+            .background(
+                Brush.linearGradient(listOf(Color(0xFF2ECC71), Color(0xFF27AE60)))
+            )
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(16.dp))
+            Text("Add to Fridge", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black)
+        }
+    }
 }
