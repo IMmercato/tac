@@ -1,6 +1,11 @@
 package com.imesh.tac
 
+import android.annotation.SuppressLint
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.util.DisplayMetrics
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -20,7 +25,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,15 +46,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,18 +67,27 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.core.content.FileProvider
 import com.imesh.tac.magnet.MagnetData
 import com.imesh.tac.magnet.MagnetShape
 import com.imesh.tac.magnet.lighten
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 import kotlin.random.Random
 
 private val PanelDark   = Color(0xFF1A202C)
@@ -107,15 +124,59 @@ private val shapeOptions = listOf(
 )
 
 private enum class Steps { DETAILS, SHAPE, CONFIRM }
+private enum class Cards { SHAPE, COLOR, PHOTO }
 
+@SuppressLint("LocalContextResourcesRead")
 @Composable
-fun AddScreen(onMagnetCreated: (MagnetData) -> Unit = {}) {
+fun AddScreen(
+    onMagnetCreated: (MagnetData) -> Unit = {}
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     var step by remember { mutableStateOf(Steps.DETAILS) }
     var destination by remember { mutableStateOf("") }
     var subLabel by remember { mutableStateOf("") }
     var selectedShape by remember { mutableStateOf<MagnetShape>(MagnetShape.Arch) }
     var selectedColor by remember { mutableIntStateOf(0) }
-    var useCustom by remember { mutableStateOf(false) }
+
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var imageBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+    val hasImage = imageUri != null
+
+    LaunchedEffect(imageUri) {
+        imageBitmap = imageUri?.let { uri ->
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                        BitmapFactory.decodeStream(stream)?.asImageBitmap()
+                    }
+                }.getOrNull()
+            }
+        }
+    }
+
+    val cameraFile = remember {
+        File(context.filesDir, "camera_capture/pending.jpg")
+            .also { it.parentFile?.mkdirs() }
+    }
+    val cameraUri = remember {
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", cameraFile)
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) imageUri = cameraUri
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        imageUri = uri
+    }
+
+    val metrics = remember { context.resources.displayMetrics }
 
     Column(
         modifier = Modifier
@@ -160,10 +221,16 @@ fun AddScreen(onMagnetCreated: (MagnetData) -> Unit = {}) {
                     selectedColor = selectedColor,
                     destination = destination,
                     subLabel = subLabel,
-                    useCustom = useCustom,
+                    imageBitmap = imageBitmap,
+                    hasImage = hasImage,
                     onShapeSelect = { selectedShape = it },
-                    onColorSelect = { selectedColor = it },
-                    onToggleCustom = { useCustom = it },
+                    onColorSelect = { index ->
+                        selectedColor = index
+                        imageUri = null
+                    },
+                    onCameraClick = { cameraLauncher.launch(cameraUri) },
+                    onGalleryClick = { galleryLauncher.launch("image/*") },
+                    onClearImage = { imageUri = null },
                     onBack = { step = Steps.DETAILS },
                     onNext = { step = Steps.CONFIRM }
                 )
@@ -298,32 +365,30 @@ private fun Shape(
     selectedColor: Int,
     destination: String,
     subLabel: String,
-    useCustom: Boolean,
+    imageBitmap: ImageBitmap?,
+    hasImage: Boolean,
     onShapeSelect: (MagnetShape) -> Unit,
     onColorSelect: (Int) -> Unit,
-    onToggleCustom: (Boolean) -> Unit,
+    onCameraClick: () -> Unit,
+    onGalleryClick: () -> Unit,
+    onClearImage: () -> Unit,
     onBack: () -> Unit,
     onNext: () -> Unit
 ) {
     val palette = colorPalettes[selectedColor]
+    var activeCard by remember { mutableStateOf(Cards.SHAPE) }
+    val previewShape = if (hasImage) MagnetShape.Postcard else selectedShape
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         MetalCard {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 FieldLabel("PREVIEW")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(110.dp)
+                        .height(120.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colorStops = arrayOf(
-                                    0f to Color(0xFFD1D9E6),
-                                    1f to Color(0xFFA8B4C8)
-                                )
-                            )
-                        ),
+                        .background(Brush.linearGradient(listOf(Color(0xFFD1D9E6), Color(0xFFA8B4C8)))),
                     contentAlignment = Alignment.Center
                 ) {
                     MagnetBody(
@@ -333,84 +398,261 @@ private fun Shape(
                             subLabel = subLabel,
                             color = palette.main,
                             accentColor = palette.accent,
-                            shape = selectedShape,
+                            shape = previewShape,
                             initialX = 0f,
                             initialY = 0f
                         ),
-                        elevation = 8.dp
+                        elevation = 8.dp,
+                        overrideBitmap = imageBitmap
                     )
                 }
             }
         }
 
-        MetalCard {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                FieldLabel("SHAPE")
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(vertical = 4.dp)
-                ) {
-                    itemsIndexed(shapeOptions) { _, option ->
-                        val active = option.shape == selectedShape
-                        ShapeChip(
-                            label = option.label,
-                            selected = active,
-                            onClick = { onShapeSelect(option.shape) }
-                        )
-                    }
-                }
-            }
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+            ImageCard(
+                isActive = activeCard == Cards.PHOTO,
+                hasImage = hasImage,
+                peekY = when (activeCard) {
+                    Cards.SHAPE -> 96.dp
+                    Cards.COLOR -> 48.dp
+                    Cards.PHOTO -> 0.dp
+                },
+                baseRotation = 2.2f,
+                zIndex = if (activeCard == Cards.PHOTO) 10f else 1f,
+                onTap = { activeCard = Cards.PHOTO },
+                onCamera = onCameraClick,
+                onGallery = onGalleryClick,
+                onClear = onClearImage
+            )
+
+            ColorCard(
+                isActive = activeCard == Cards.COLOR,
+                selectedColor = selectedColor,
+                overridden = hasImage,
+                peekY = when (activeCard) {
+                    Cards.SHAPE -> 48.dp
+                    Cards.COLOR -> 0.dp
+                    Cards.PHOTO -> 48.dp
+                },
+                baseRotation = -1.4f,
+                zIndex = if (activeCard == Cards.COLOR) 10f else 2f,
+                onTap = { activeCard = Cards.COLOR },
+                onSelect = onColorSelect
+            )
+
+            ShapeCard(
+                isActive = activeCard == Cards.SHAPE,
+                selectedShape = selectedShape,
+                overridden = hasImage,
+                peekY = when (activeCard) {
+                    Cards.SHAPE -> 0.dp
+                    Cards.COLOR -> 48.dp
+                    Cards.PHOTO -> 96.dp
+                },
+                zIndex = if (activeCard == Cards.SHAPE) 10f else 3f,
+                onTap = { activeCard = Cards.SHAPE },
+                onSelect = onShapeSelect
+            )
         }
 
-        MetalCard {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                FieldLabel("COLOR")
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(vertical = 4.dp)
-                ) {
-                    itemsIndexed(colorPalettes) { index, palette ->
-                        ColorSwatch(
-                            palette = palette,
-                            selected = index == selectedColor,
-                            onClick = { onColorSelect(index) }
-                        )
-                    }
-                }
-            }
-        }
-
-        MetalCard {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                FieldLabel("OR USE YOUR OWN PHOTO")
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MediaButton(
-                        icon = Icons.Default.CameraAlt,
-                        label = "Camera",
-                        selected = useCustom,
-                        onClick = { onToggleCustom(true) }
-                    )
-                    MediaButton(
-                        icon = Icons.Default.PhotoLibrary,
-                        label = "Gallery",
-                        selected = useCustom,
-                        onClick = { onToggleCustom(true) }
-                    )
-                }
-                AnimatedVisibility(visible = useCustom) {
-                    Text(
-                        "Custom image selected - will be placed on a Postcard shape.",
-                        color = AccentGold,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-            }
-        }
+        val extraSpace by animateDpAsState(
+            targetValue = when (activeCard) {
+                Cards.SHAPE -> 104.dp
+                Cards.COLOR -> 56.dp
+                Cards.PHOTO -> 8.dp
+            },
+            animationSpec = spring(Spring.DampingRatioMediumBouncy),
+            label = "deckSpacer"
+        )
+        Spacer(Modifier.height(extraSpace))
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button2(label = "← Back", onClick = onBack, modifier = Modifier.weight(1f))
             Button(label = "Preview →", onClick = onNext, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun ShapeCard(
+    isActive: Boolean,
+    selectedShape: MagnetShape,
+    overridden: Boolean,
+    peekY: Dp,
+    zIndex: Float,
+    onTap: () -> Unit,
+    onSelect: (MagnetShape) -> Unit
+) {
+    DeckCard(
+        tabLabel = "A  ·  SHAPE",
+        isActive = isActive,
+        peekY = peekY,
+        rotation = 0f,
+        zIndex = zIndex,
+        onTap = onTap
+    ) {
+        if (overridden) OverrideNote("Photo selected — shape locked to Postcard")
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            itemsIndexed(shapeOptions) { _, opt ->
+                ShapeChip(
+                    label = opt.label,
+                    selected = opt.shape == selectedShape && !overridden,
+                    onClick = { onSelect(opt.shape) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColorCard(
+    isActive: Boolean,
+    selectedColor: Int,
+    overridden: Boolean,
+    peekY: Dp,
+    baseRotation: Float,
+    zIndex: Float,
+    onTap: () -> Unit,
+    onSelect: (Int) -> Unit
+) {
+    DeckCard(
+        tabLabel = "B  ·  COLOR",
+        isActive = isActive,
+        peekY = peekY,
+        rotation = baseRotation,
+        zIndex = zIndex,
+        onTap = onTap
+    ) {
+        if (overridden) OverrideNote("Photo selected — color overridden")
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            itemsIndexed(colorPalettes) { index, item ->
+                ColorSwatch(
+                    palette = item,
+                    selected = index == selectedColor && !overridden,
+                    onClick = { onSelect(index) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImageCard(
+    isActive: Boolean,
+    hasImage: Boolean,
+    peekY: Dp,
+    baseRotation: Float,
+    zIndex: Float,
+    onTap: () -> Unit,
+    onCamera: () -> Unit,
+    onGallery: () -> Unit,
+    onClear: () -> Unit
+) {
+    DeckCard(
+        tabLabel = "C  ·  PHOTO",
+        isActive = isActive,
+        peekY = peekY,
+        rotation = baseRotation,
+        zIndex = zIndex,
+        onTap = onTap
+    ) {
+        if (hasImage) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment     = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Default.Check, null, tint = AccentGold, modifier = Modifier.size(14.dp))
+                    Text("Photo ready", color = AccentGold, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Button2(label = "Clear", onClick = onClear, modifier = Modifier.width(72.dp).height(34.dp))
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MediaButton(icon = Icons.Default.CameraAlt, label = "Camera", onClick = onCamera, modifier = Modifier.weight(1f))
+                MediaButton(icon = Icons.Default.PhotoLibrary, label = "Gallery", onClick = onGallery, modifier = Modifier.weight(1f))
+            }
+        }
+        Text(
+            text = "Photo is placed on a Postcard magnet.",
+            color = TextMuted,
+            fontSize = 10.sp,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun DeckCard(
+    tabLabel: String,
+    isActive: Boolean,
+    peekY: Dp,
+    rotation: Float,
+    zIndex: Float,
+    onTap: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val translateY by animateDpAsState(
+        targetValue = peekY,
+        animationSpec = spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow),
+        label = "cardY"
+    )
+    val cardRot by animateFloatAsState(
+        targetValue = if (isActive) 0f else rotation,
+        animationSpec = spring(Spring.DampingRatioMediumBouncy),
+        label = "cardRot"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .zIndex(zIndex)
+            .graphicsLayer {
+                translationY = translateY.toPx()
+                rotationZ = cardRot
+            }
+            .shadow(if (isActive) 14.dp else 4.dp, RoundedCornerShape(16.dp))
+            .background(
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0.00f to if (isActive) Color(0xFF5A6A7D) else Color(0xFF3A4A5C),
+                        0.55f to if (isActive) Color(0xFF2D3748) else Color(0xFF252F3D),
+                        1.00f to Color(0xFF1A202C)
+                    )
+                ),
+                RoundedCornerShape(16.dp)
+            )
+            .border(
+                1.dp,
+                if (isActive) AccentGold.copy(alpha = 0.55f) else Color(0xFFCDD6E0).copy(alpha = 0.12f),
+                RoundedCornerShape(16.dp)
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onTap
+            )
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FieldLabel(tabLabel)
+                if (!isActive) Icon(Icons.Default.KeyboardArrowDown, null, tint = TextMuted, modifier = Modifier.size(16.dp))
+            }
+            AnimatedVisibility(
+                visible = isActive,
+                enter = fadeIn(tween(180)) + slideInVertically(tween(200)) { it / 4 },
+                exit = fadeOut(tween(120))
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    content()
+                }
+            }
         }
     }
 }
@@ -455,7 +697,8 @@ private fun Confirm(
                             initialX = 0f,
                             initialY = 0f
                         ),
-                        elevation = 16.dp
+                        elevation = 16.dp,
+                        overrideBitmap = null
                     )
                 }
 
@@ -533,6 +776,9 @@ private fun FieldLabel(text: String) {
         letterSpacing = 1.2.sp
     )
 }
+
+@Composable
+private fun OverrideNote(text: String) = Text(text, color = AccentGold.copy(alpha = 0.75f), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
 
 @Composable
 private fun TextField(
@@ -725,14 +971,14 @@ private fun Button2(
 private fun MediaButton(
     icon: ImageVector,
     label: String,
-    selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(if (selected) PanelMid else InputBg)
-            .border(1.dp, if (selected) AccentGold.copy(alpha = 0.5f) else InputBorder, RoundedCornerShape(10.dp))
+            .background(InputBg)
+            .border(1.dp, InputBorder, RoundedCornerShape(10.dp))
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
@@ -741,8 +987,9 @@ private fun MediaButton(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(icon, null, tint = if (selected) AccentGold else TextMuted, modifier = Modifier.size(16.dp))
-        Text(label, color = if (selected) AccentGold else TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Icon(icon, null, tint = AccentGold, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 
