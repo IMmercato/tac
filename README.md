@@ -4,6 +4,11 @@ Your digital fridge for travel memories. Stick magnets, postcards, and photos fr
 
 ---
 
+## Demo
+> [Watch the demo](https://immagini-b1484.web.app/TAC.mp4)
+
+---
+
 ## What it is
 
 TAC is a mobile app that works like the fridge door at home. You know the one — covered in magnets from places you visited, postcards from friends, photos held up by a magnet from a market in some city you barely remember.
@@ -22,11 +27,16 @@ You create a fridge. You add memories to it — photos, postcards, magnets — o
 
 That's it. No algorithm, no feed, no pressure to post. Just a place to keep and share what you actually brought back.
 
-## Status
+## Install
 
-Early stage. The app is currently Android only.
+Download the latest APK from the [Releases](../../releases) page.
 
-The `How to run it` section is a work in progress — setup instructions coming soon.
+## Requirements
+
+- **minSdk:** 35 (Android 15+)
+- **Permissions:**
+    - `CAMERA` — to take photos directly in the app
+    - `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` — to pick photos from your gallery
 
 ## Platform support
 
