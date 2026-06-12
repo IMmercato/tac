@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ModeEdit
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -23,10 +31,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -48,6 +56,8 @@ val HandleColor    = Color(0xFF9AAABF)
 @Composable
 fun Fridge(
     magnets: List<MagnetData>,
+    onMagnetMoved: (id: String, x: Float, y: Float) -> Unit,
+    onMagnetDelete: (id: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(
@@ -71,20 +81,20 @@ fun Fridge(
                 .align(Alignment.CenterEnd)
                 .offset(x = (-14).dp)
                 .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            Color(0xFF7A8FA8),
-                            Color(0xFFCCD8E8),
-                            Color(0xFF7A8FA8)
-                        )
-                    ),
+                    Brush.horizontalGradient(listOf(Color(0xFF7A8FA8), Color(0xFFCCD8E8), Color(0xFF7A8FA8))),
                     RoundedCornerShape(3.dp)
                 )
         )
 
         val sorted = remember(magnets) { magnets.sortedBy { it.elevation.value } }
         sorted.forEach { data ->
-            key(data.id) { Magnet(data) }
+            key(data.id) {
+                Magnet(
+                    data = data,
+                    onDragEnd = { x, y -> onMagnetMoved(data.id, x, y) },
+                    onDelete = { onMagnetDelete(data.id) }
+                )
+            }
         }
     }
 }
@@ -104,21 +114,33 @@ private fun DrawScope.drawBrushedLines() {
 }
 
 @Composable
-fun Magnet(data: MagnetData) {
+fun Magnet(data: MagnetData, onDragEnd: (Float, Float) -> Unit, onDelete: () -> Unit) {
     var offsetX by remember { mutableFloatStateOf(data.initialX) }
     var offsetY by remember { mutableFloatStateOf(data.initialY) }
     var isDragging by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
 
     val liftedElevation = data.elevation + 12.dp
 
     Box(
         modifier = Modifier
             .offset { IntOffset(offsetX.toInt(), offsetY.toInt()) }
-            .pointerInput(Unit) {
+            .pointerInput(data.id) {
+                detectTapGestures(
+                    onLongPress = { showMenu = true }
+                )
+            }
+            .pointerInput(data.id) {
                 detectDragGestures(
                     onDragStart = { isDragging = true },
-                    onDragEnd = { isDragging = false },
-                    onDragCancel = { isDragging = false }
+                    onDragEnd = {
+                        isDragging = false
+                        onDragEnd(offsetX, offsetY)
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                        onDragEnd(offsetX, offsetY)
+                    }
                 ) { change, dragAmount ->
                     change.consume()
                     offsetX += dragAmount.x
@@ -133,15 +155,36 @@ fun Magnet(data: MagnetData) {
     ) {
         MagnetBody(
             data = data,
-            elevation = if (isDragging) liftedElevation else data.elevation
+            elevation = if (isDragging) liftedElevation else data.elevation,
+            overrideBitmap = null
         )
+
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Icon(Icons.Default.Delete, "delete") },
+                onClick = {
+                    showMenu = false
+                    onDelete()
+                }
+            )
+            DropdownMenuItem(
+                text = { Icon(Icons.Default.ModeEdit, "edit") },
+                onClick = {
+                    showMenu = false
+                }
+            )
+        }
     }
 }
 
 @Composable
 fun MagnetBody(
     data: MagnetData,
-    elevation: Dp
+    elevation: Dp,
+    overrideBitmap: ImageBitmap?
 ) {
     when (data.shape) {
         MagnetShape.Arch -> ArchMagnet(data, elevation)
