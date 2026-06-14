@@ -85,19 +85,18 @@ import androidx.core.content.FileProvider
 import com.imesh.tac.magnet.MagnetData
 import com.imesh.tac.magnet.MagnetShape
 import com.imesh.tac.magnet.lighten
+import com.imesh.tac.ui.theme.AccentGold
+import com.imesh.tac.ui.theme.InputBg
+import com.imesh.tac.ui.theme.InputBorder
+import com.imesh.tac.ui.theme.PanelDark
+import com.imesh.tac.ui.theme.PanelLight
+import com.imesh.tac.ui.theme.PanelMid
+import com.imesh.tac.ui.theme.TextMuted
+import com.imesh.tac.ui.theme.TextPrimary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.random.Random
-
-private val PanelDark   = Color(0xFF1A202C)
-private val PanelMid    = Color(0xFF2D3748)
-private val PanelLight  = Color(0xFF4A5568)
-private val AccentGold  = Color(0xFFE8C882)
-private val TextPrimary = Color(0xFFE8EDF2)
-private val TextMuted   = Color(0xFF6B7A8D)
-private val InputBg     = Color(0xFF252F3D)
-private val InputBorder = Color(0xFF3A4A5C)
 
 private data class ColorPalette(val name: String, val main: Color, val accent: Color)
 
@@ -414,8 +413,8 @@ private fun Shape(
                 isActive = activeCard == Cards.PHOTO,
                 hasImage = hasImage,
                 peekY = when (activeCard) {
-                    Cards.SHAPE -> 96.dp
-                    Cards.COLOR -> 48.dp
+                    Cards.SHAPE -> 168.dp
+                    Cards.COLOR -> 168.dp
                     Cards.PHOTO -> 0.dp
                 },
                 baseRotation = 2.2f,
@@ -431,9 +430,9 @@ private fun Shape(
                 selectedColor = selectedColor,
                 overridden = hasImage,
                 peekY = when (activeCard) {
-                    Cards.SHAPE -> 48.dp
+                    Cards.SHAPE -> 120.dp
                     Cards.COLOR -> 0.dp
-                    Cards.PHOTO -> 48.dp
+                    Cards.PHOTO -> 120.dp
                 },
                 baseRotation = -1.4f,
                 zIndex = if (activeCard == Cards.COLOR) 10f else 2f,
@@ -447,8 +446,8 @@ private fun Shape(
                 overridden = hasImage,
                 peekY = when (activeCard) {
                     Cards.SHAPE -> 0.dp
-                    Cards.COLOR -> 48.dp
-                    Cards.PHOTO -> 96.dp
+                    Cards.COLOR -> 120.dp
+                    Cards.PHOTO -> 168.dp
                 },
                 zIndex = if (activeCard == Cards.SHAPE) 10f else 3f,
                 onTap = { activeCard = Cards.SHAPE },
@@ -457,11 +456,7 @@ private fun Shape(
         }
 
         val extraSpace by animateDpAsState(
-            targetValue = when (activeCard) {
-                Cards.SHAPE -> 104.dp
-                Cards.COLOR -> 56.dp
-                Cards.PHOTO -> 8.dp
-            },
+            targetValue = 176.dp,
             animationSpec = spring(Spring.DampingRatioMediumBouncy),
             label = "deckSpacer"
         )

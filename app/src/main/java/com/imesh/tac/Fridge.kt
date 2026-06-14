@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.ModeEdit
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -46,11 +45,9 @@ import com.imesh.tac.magnet.MagnetData
 import com.imesh.tac.magnet.MagnetShape
 import com.imesh.tac.magnet.PostcardMagnet
 import com.imesh.tac.magnet.ShieldMagnet
-
-val MetalLight     = Color(0xFFF0F4F8)
-val MetalMid       = Color(0xFFD1D9E6)
-val MetalDark      = Color(0xFFB8C2D1)
-val HandleColor    = Color(0xFF9AAABF)
+import com.imesh.tac.ui.theme.MetalDark
+import com.imesh.tac.ui.theme.MetalLight
+import com.imesh.tac.ui.theme.MetalMid
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
@@ -58,6 +55,7 @@ fun Fridge(
     magnets: List<MagnetData>,
     onMagnetMoved: (id: String, x: Float, y: Float) -> Unit,
     onMagnetDelete: (id: String) -> Unit,
+    onMagnetTapped: (id: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(
@@ -92,7 +90,8 @@ fun Fridge(
                 Magnet(
                     data = data,
                     onDragEnd = { x, y -> onMagnetMoved(data.id, x, y) },
-                    onDelete = { onMagnetDelete(data.id) }
+                    onDelete = { onMagnetDelete(data.id) },
+                    onTap = { onMagnetTapped(data.id) }
                 )
             }
         }
@@ -114,7 +113,7 @@ private fun DrawScope.drawBrushedLines() {
 }
 
 @Composable
-fun Magnet(data: MagnetData, onDragEnd: (Float, Float) -> Unit, onDelete: () -> Unit) {
+fun Magnet(data: MagnetData, onDragEnd: (Float, Float) -> Unit, onDelete: () -> Unit, onTap: () -> Unit) {
     var offsetX by remember { mutableFloatStateOf(data.initialX) }
     var offsetY by remember { mutableFloatStateOf(data.initialY) }
     var isDragging by remember { mutableStateOf(false) }
@@ -127,7 +126,8 @@ fun Magnet(data: MagnetData, onDragEnd: (Float, Float) -> Unit, onDelete: () -> 
             .offset { IntOffset(offsetX.toInt(), offsetY.toInt()) }
             .pointerInput(data.id) {
                 detectTapGestures(
-                    onLongPress = { showMenu = true }
+                    onLongPress = { showMenu = true },
+                    onTap = { onTap() }
                 )
             }
             .pointerInput(data.id) {
