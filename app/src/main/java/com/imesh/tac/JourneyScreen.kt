@@ -1,27 +1,31 @@
 package com.imesh.tac
 
-import android.R
 import android.graphics.BitmapFactory
-import android.media.Image
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -44,24 +48,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.imesh.tac.magnet.MagnetData
+import com.imesh.tac.ui.theme.Background
+import com.imesh.tac.ui.theme.inset
+import com.imesh.tac.ui.theme.surface
 import java.io.File
-
-val Background = Color(0xFFEFEFEF)
-val LightHighlight = Color(0xFFFFFFFF)
-val DarkShadow = Color(0xFFD1D9E6)
-val Orange = Color(0xFFFC6100)
 
 enum class JourneySection {
     MEDIA_HEADER,
@@ -86,6 +86,8 @@ fun JourneyScreen(
             )
         )
     }
+
+    var isEditingMode by remember { mutableStateOf(false) }
 
     fun moveSectionUp(index: Int) {
         if (index > 0) {
@@ -145,6 +147,8 @@ fun JourneyScreen(
                         JourneySection.DESCRIPTION -> "Travel Logs & Vlogs"
                         JourneySection.GALLERY -> "Media"
                     },
+                    isEditing = isEditingMode,
+                    onToggleEdit = { isEditingMode = !isEditingMode },
                     onUp = if (current > 0) { { moveSectionUp(current) } } else null,
                     onDown = if (current < sectionOrder.size - 1) { { moveSectionDown(current) } } else null,
                     modifier = Modifier.animateContentSize()
@@ -163,44 +167,58 @@ fun JourneyScreen(
 
 @Composable
 fun SectionWrapper(
-   title: String,
-   onUp: (() -> Unit)?,
-   onDown: (() -> Unit)?,
-   modifier: Modifier = Modifier,
-   content: @Composable () -> Unit
+    title: String,
+    isEditing: Boolean,
+    onToggleEdit: () -> Unit,
+    onUp: (() -> Unit)?,
+    onDown: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(16.dp)
-            .neumorphicSurface()
+            .surface()
+            .pointerInput(isEditing) {
+                detectTapGestures(
+                    onLongPress = { onToggleEdit() },
+                    onTap = { if (isEditing) onToggleEdit() }
+                )
+            }
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        AnimatedVisibility(
+            visible = isEditing,
+            enter = fadeIn() + slideInVertically(),
+            exit = fadeOut() + slideOutVertically()
         ) {
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF7F8C8D)
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (onUp != null) {
-                    IconButton(
-                        onClick = onUp,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.size(14.dp), tint = Color(0xFF34495E))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF7F8C8D)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (onUp != null) {
+                        IconButton(
+                            onClick = onUp,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.size(14.dp), tint = Color(0xFF34495E))
+                        }
                     }
-                }
-                if (onDown != null) {
-                    IconButton(
-                        onClick = onDown,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.size(14.dp), tint = Color(0xFF34495E))
+                    if (onDown != null) {
+                        IconButton(
+                            onClick = onDown,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.size(14.dp), tint = Color(0xFF34495E))
+                        }
                     }
                 }
             }
@@ -293,7 +311,7 @@ fun Description(magnet: MagnetData) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(14.dp)
-            .neumorphicInsetSurface()
+            .inset()
     ) {
         Text(
             text = "Bello ${magnet.label}",
@@ -306,40 +324,23 @@ fun Description(magnet: MagnetData) {
 
 @Composable
 fun MediaGallery(magnet: MagnetData) {
+    // NO MEDIA YET
+    val si = listOf(magnet.color, magnet.accentColor, magnet.color.copy(alpha = 0.6f), magnet.accentColor.copy(alpha = 0.5f))
 
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        for (i in 0..3) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(si[i % si.size].copy(alpha = 0.85f))
+                    .border(2.dp, Color.White, RoundedCornerShape(8.dp))
+                    .shadow(2.dp)
+            )
+        }
+    }
 }
-
-fun Modifier.neumorphicSurface() = this.drawBehind {
-    drawRoundRect(
-        color = LightHighlight,
-        topLeft = Offset(-4.dp.toPx(), -4.dp.toPx()),
-        size = this.size.copy(width = this.size.width + 4.dp.toPx(), height = this.size.height + 4.dp.toPx()),
-        cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx())
-    )
-    drawRoundRect(
-        color = DarkShadow,
-        topLeft = Offset(4.dp.toPx(), 4.dp.toPx()),
-        size = this.size,
-        cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx())
-    )
-}.background(Background, RoundedCornerShape(16.dp))
-
-fun Modifier.neumorphicInsetSurface() = this.drawBehind {
-    drawRoundRect(
-        color = DarkShadow,
-        topLeft = Offset(0f, 0f),
-        size = this.size,
-        cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx())
-    )
-    drawRoundRect(
-        color = LightHighlight,
-        topLeft = Offset(2.dp.toPx(), 2.dp.toPx()),
-        size = this.size,
-        cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx())
-    )
-}.background(Background.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-
-fun Modifier.neumorphicButton() = this.drawBehind {
-    drawCircle(color = LightHighlight, radius = this.size.maxDimension / 2, center = Offset(0f, 0f))
-    drawCircle(color = DarkShadow, radius = this.size.maxDimension / 2, center = Offset(4.dp.toPx(), 4.dp.toPx()))
-}.background(Background, CircleShape)
